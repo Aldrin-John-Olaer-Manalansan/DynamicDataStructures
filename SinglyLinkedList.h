@@ -2,7 +2,7 @@
  * @File: SinglyLinkedList.h
  * @Author: Aldrin John O. Manalansan (ajom)
  * @Email: aldrinjohnolaermanalansan@gmail.com
- * @Brief: Singly Linked List library source header
+ * @Brief: Attempted Implementation of Singly Linked List
  * @LastUpdate: June 7, 2025
  * 
  * Copyright (C) 2025  Aldrin John O. Manalansan  <aldrinjohnolaermanalansan@gmail.com>
