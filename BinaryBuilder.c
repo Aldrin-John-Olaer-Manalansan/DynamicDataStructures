@@ -3,7 +3,7 @@
  * @Author: Aldrin John O. Manalansan (ajom)
  * @Email: aldrinjohnolaermanalansan@gmail.com
  * @Brief: Dynamically construct binaries without worrying about the allocated memory size
- * @LastUpdate: June 7, 2025
+ * @LastUpdate: June 16, 2025
  * 
  * Copyright (C) 2025  Aldrin John O. Manalansan  <aldrinjohnolaermanalansan@gmail.com>
  * 
@@ -100,32 +100,37 @@ size_t BinaryBuilder_Delete(binarybuilder_t* const _binaryBuilder, size_t _lengt
 	return _length;
 }
 
-// Sets a single byte at the write offset without deleting any bytes at the current binary
-bool BinaryBuilder_SetByte(binarybuilder_t* const _binaryBuilder, const uint8_t byte) {
+/* Sets a single byte at the write offset without deleting any bytes at the current binary
+ * Returns an offset to where the byte got written
+ * Returns -1 if the byte wasn't written
+ */
+uintptr_t BinaryBuilder_SetByte(binarybuilder_t* const _binaryBuilder, const uint8_t byte) {
 	if (UINTPTR_MAX == BinaryBuilder_ReserveSize(_binaryBuilder, 1)) {
-		return false; // insufficient memory
+		return UINTPTR_MAX; // insufficient memory
 	}
+	const uintptr_t initialOffset = BinaryBuilder_GetWriteOffset(_binaryBuilder);
 	*(uint8_t*)_binaryBuilder->writePtr = byte; // change the byte at the write pointer to our desired byte
 	void* const newWritePtr = (uint8_t*)_binaryBuilder->writePtr + 1;
 	_binaryBuilder->writePtr = newWritePtr;
 	if (_binaryBuilder->endPtr < newWritePtr) { // written bytes is beyond the endPtr
 		_binaryBuilder->endPtr = newWritePtr; // update the endPtr
 	}
-	return true;
+	return initialOffset;
 }
 
 /* Writes a number of bytes at the write offset without deleting any bytes at the current binary
- * if _source = 0x0 to 0xFF , fills the field with this bytes, for example:
+ * if _source = 0x0 to 0xFF , fills the field with this byte, for example:
  * _source = 0x11 will set each byte at the field as 0x11
  * else, set _source with a valid pointer where the copied data is located
+ * Returns an offset to where the bytes got written
+ * Returns -1 if the bytes wasn't written
  */
-bool BinaryBuilder_SetBytes(binarybuilder_t* const _binaryBuilder, const void* const _source, const size_t _length) {
-	if (_length <= 0) {
-		return false; // invalid length
+uintptr_t BinaryBuilder_SetBytes(binarybuilder_t* const _binaryBuilder, const void* const _source, const size_t _length) {
+	if ((_length <= 0) // invalid length
+	|| (UINTPTR_MAX == BinaryBuilder_ReserveSize(_binaryBuilder, _length))) { // insufficient memory
+		return UINTPTR_MAX;
 	}
-	if (UINTPTR_MAX == BinaryBuilder_ReserveSize(_binaryBuilder, _length)) {
-		return false; // insufficient memory
-	}
+	const uintptr_t initialOffset = BinaryBuilder_GetWriteOffset(_binaryBuilder);
 	void* const newWritePtr = (uint8_t*)_binaryBuilder->writePtr + _length;
 	if ((uintptr_t)_source > 0xFF) {
 		memmove(_binaryBuilder->writePtr, _source, _length);
@@ -136,38 +141,45 @@ bool BinaryBuilder_SetBytes(binarybuilder_t* const _binaryBuilder, const void* c
 	if (_binaryBuilder->endPtr < newWritePtr) { // written bytes is beyond the endPtr
 		_binaryBuilder->endPtr = newWritePtr; // update the endPtr
 	}
-	return true;
+	return initialOffset;
 }
 
-// Inserts a single byte at the write offset without deleting any bytes at the current binary
-bool BinaryBuilder_InsertByte(binarybuilder_t* const _binaryBuilder, const uint8_t byte) {
+/* Inserts a single byte at the write offset without deleting any bytes at the current binary
+ * Returns an offset to where the byte got written
+ * Returns -1 if the byte wasn't written
+ */
+uintptr_t BinaryBuilder_InsertByte(binarybuilder_t* const _binaryBuilder, const uint8_t byte) {
 	if (UINTPTR_MAX == BinaryBuilder_ReserveSize(_binaryBuilder, 1)) {
-		return false; // insufficient memory
+		return UINTPTR_MAX; // insufficient memory
 	}
+	const uintptr_t initialOffset = BinaryBuilder_GetWriteOffset(_binaryBuilder);
 	if (_binaryBuilder->writePtr < _binaryBuilder->endPtr) { // write pointer is in between the binary content of the buffer
 		memmove((uint8_t*)_binaryBuilder->writePtr + 1, _binaryBuilder->writePtr, (size_t)_binaryBuilder->endPtr - (size_t)_binaryBuilder->writePtr);
 	}
 	*(uint8_t*)_binaryBuilder->writePtr = byte; // change the byte at the write pointer to our desired byte
 	_binaryBuilder->writePtr = (uint8_t*)_binaryBuilder->writePtr + 1;
 	_binaryBuilder->endPtr = (uint8_t*)_binaryBuilder->endPtr + 1;
-	return true;
+	return initialOffset;
 }
 
 /* Inserts a number of bytes at the write offset without deleting any bytes at the current binary
  * if _source = 0x0 to 0xFF , fills the field with this bytes, for example:
  * else, set _source with a valid pointer where the copied data is located
+ * Returns an offset to where the bytes got written
+ * Returns -1 if the bytes wasn't written
  */
-bool BinaryBuilder_InsertBytes(binarybuilder_t* const _binaryBuilder, const void* const _source, const size_t _length) {
+uintptr_t BinaryBuilder_InsertBytes(binarybuilder_t* const _binaryBuilder, const void* const _source, const size_t _length) {
 	if (_binaryBuilder->writePtr >= _binaryBuilder->endPtr) { // write pointer is NOT in between the binary content of the buffer
 		return BinaryBuilder_SetBytes(_binaryBuilder, _source, _length);
 	}
+
 	if (_length <= 0) {
-		return false; // invalid length
+		return UINTPTR_MAX; // invalid length
 	}
 
 	if ((uintptr_t)_source > 0xFF) {
 		if (UINTPTR_MAX == BinaryBuilder_ReserveSize(_binaryBuilder, _length * 2)) { // we will use a temporary storage to store itself
-			return false; // insufficient memory
+			return UINTPTR_MAX; // insufficient memory
 		}
 		void* const storagePtr = (uint8_t*)_binaryBuilder->endPtr + _length;
 		memmove(storagePtr, _source, _length); // temporarily store the source contents at the unused region, necessary to assure overlapping memories are transfered correctly
@@ -175,15 +187,16 @@ bool BinaryBuilder_InsertBytes(binarybuilder_t* const _binaryBuilder, const void
 		memcpy(_binaryBuilder->writePtr, storagePtr, _length);
 	} else {
 		if (UINTPTR_MAX == BinaryBuilder_ReserveSize(_binaryBuilder, _length)) {
-			return false; // insufficient memory
+			return UINTPTR_MAX; // insufficient memory
 		}
 		memmove((uint8_t*)_binaryBuilder->writePtr + _length, _binaryBuilder->writePtr, (size_t)_binaryBuilder->endPtr - (size_t)_binaryBuilder->writePtr);
 		memset(_binaryBuilder->writePtr, (int)((uintptr_t)_source & UINT_MAX), _length);
 	}
 
+	const uintptr_t initialOffset = BinaryBuilder_GetWriteOffset(_binaryBuilder);
 	_binaryBuilder->writePtr = (uint8_t*)_binaryBuilder->writePtr + _length;
 	_binaryBuilder->endPtr = (uint8_t*)_binaryBuilder->endPtr + _length;
-	return true;
+	return initialOffset;
 }
 
 // Clears the binary making it look blank/empty
@@ -208,6 +221,19 @@ void BinaryBuilder_Free(binarybuilder_t* _binaryBuilder) {
 		free(_binaryBuilder->data);
 	}
 	free((void*)_binaryBuilder);
+}
+
+// Copies of the source's contents to the destination
+// set _destination = NULL to create a new binarybuilder object
+binarybuilder_t* BinaryBuilder_Clone(binarybuilder_t* restrict _destination, const binarybuilder_t* restrict const _source) {
+	_destination = BinaryBuilder_InitWithMinSize(_destination, _source->capacity, _source->expansionRate - 1.0);
+	if (!_destination) {
+		return NULL;
+	}
+	memcpy(_destination->data, _source->data, _source->capacity);
+	_destination->writePtr = (uint8_t*)_destination->data + BinaryBuilder_GetWriteOffset(_source);
+	_destination->endPtr = (uint8_t*)_destination->data + BinaryBuilder_GetCurrentSize(_source);
+	return _destination;
 }
 
 /* Properly initializes the binarybuilder variable.
@@ -300,6 +326,17 @@ bool BinaryData_SetMinSize(binarydata_t* const _binaryData, const size_t _minCap
 	_binaryData->data = expandedBuffer;
 	_binaryData->capacity = _minCapacity;
 	return true;
+}
+
+// Copies of the source's contents to the destination
+// set _destination = NULL to create a new binarydata object
+binarydata_t* BinaryData_Clone(binarydata_t* restrict _destination, const binarydata_t* restrict const _source) {
+	_destination = BinaryData_InitWithMinSize(_destination, _source->capacity);
+	if (!_destination) {
+		return NULL;
+	}
+	memcpy(_destination->data, _source->data, _source->capacity);
+	return _destination;
 }
 
 /* properly initializes the binarydata variable.

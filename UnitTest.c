@@ -33,12 +33,6 @@ int main(void) {
 #include "StringBuilder.c"
 stringbuilder_t stringBuilder;
 int main(void) {
-    printf("ASAN is running!\n");
-    uint8_t *arr = malloc(10);
-    arr[7] = 'H';
-    printf("%X\n", arr[15]);    // This should definitely trigger ASAN
-    free(arr);
-
     StringBuilder_InitWithMinSize(&stringBuilder, 59, 0.5);
     StringBuilder_InsertString(&stringBuilder, "Hello Word!");
     printf("%llu %llu %s\n", strlen(stringBuilder.string), stringBuilder.capacity, stringBuilder.string);

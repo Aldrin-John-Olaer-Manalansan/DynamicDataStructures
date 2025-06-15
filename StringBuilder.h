@@ -3,7 +3,7 @@
  * @Author: Aldrin John O. Manalansan (ajom)
  * @Email: aldrinjohnolaermanalansan@gmail.com
  * @Brief: Dynamically construct strings without worrying about the allocated memory size
- * @LastUpdate: June 7, 2025
+ * @LastUpdate: June 16, 2025
  * 
  * Copyright (C) 2025  Aldrin John O. Manalansan  <aldrinjohnolaermanalansan@gmail.com>
  * 
@@ -17,7 +17,13 @@
 
 #include "BinaryBuilder.h"
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdarg.h>
+
+// linux compatibility
+#include <stddef.h>
+#include <limits.h>
 
 #define _STRINGBUILDER_INITIALCAPACITY 200
 #define _STRINGBUILDER_BUFFEREXPANSIONRATE 0.5
@@ -35,7 +41,9 @@ static inline bool StringBuilder_SetMinSize(stringbuilder_t* const _stringBuilde
 	return BinaryBuilder_SetMinSize((binarybuilder_t* const)_stringBuilder, _minCapacity);
 }
 
-// assures that the string buffer has enough unused characters + null terminator. Expanding its memory size if necessary
+// assures that the string buffer has enough unused size. Expanding its memory size if necessary
+// returns the write offset if successful
+// returns UINTPTR_MAX if memory expansion failed
 static inline uintptr_t StringBuilder_ReserveStringLength(stringbuilder_t* const _stringBuilder, const size_t _reservedStringLength) {
 	return BinaryBuilder_ReserveSize((binarybuilder_t* const)_stringBuilder, _reservedStringLength + 1);
 }
@@ -44,12 +52,22 @@ static inline bool StringBuilder_SetWriteOffset(stringbuilder_t* const _stringBu
 	return BinaryBuilder_SetWriteOffset((binarybuilder_t* const)_stringBuilder, _offset);
 }
 
+// Only frees the StringBuilder's buffer
 static inline void StringBuilder_FreeBuffer(stringbuilder_t* const _stringBuilder) {
 	BinaryBuilder_FreeBuffer((binarybuilder_t* const)_stringBuilder);
 }
 
+/* Frees a StringBuilder object
+ * CAUTION! Do not pass pointer to a permanent BinaryBuilder variable!
+ */
 static inline void StringBuilder_Free(stringbuilder_t* _stringBuilder) {
 	BinaryBuilder_Free((binarybuilder_t*)_stringBuilder);
+}
+
+// Copies of the source's contents to the destination
+// set _destination = NULL to create a new stringbuilder object
+static inline stringbuilder_t* StringBuilder_Clone(stringbuilder_t* restrict _destination, const stringbuilder_t* restrict const _source) {
+	return (stringbuilder_t*)BinaryBuilder_Clone((binarybuilder_t*)_destination, (binarybuilder_t*)_source);
 }
 
 /* properly initializes the stringbuilder variable.
@@ -70,11 +88,13 @@ static inline void StringBuilder_InitUsingBuffer(stringbuilder_t* const _stringB
 	BinaryBuilder_InitUsingBuffer((binarybuilder_t* const)_stringBuilder, _buffer, _capacity);
 }
 
+char* StringBuilder_GetStringWithOffset(const stringbuilder_t* const _stringBuilder, const uintptr_t offset);
+size_t StringBuilder_GetUsedLength(stringbuilder_t* const _stringBuilder);
 size_t StringBuilder_Delete(stringbuilder_t* const _stringBuilder, size_t _length);
-bool StringBuilder_InsertCharacter(stringbuilder_t* const _stringBuilder, const char character);
-bool StringBuilder_InsertCharacters(stringbuilder_t* const _stringBuilder, const char* restrict const _str, const size_t _length);
-bool StringBuilder_InsertString(stringbuilder_t* const _stringBuilder, const char* restrict const _str);
-bool StringBuilder_InsertFormattedString(stringbuilder_t* const _stringBuilder, const char* restrict const _format, ...);
+uintptr_t StringBuilder_InsertCharacter(stringbuilder_t* const _stringBuilder, const char character);
+uintptr_t StringBuilder_InsertCharacters(stringbuilder_t* const _stringBuilder, const char* restrict const _str, const size_t _length);
+uintptr_t StringBuilder_InsertString(stringbuilder_t* const _stringBuilder, const char* restrict const _str);
+uintptr_t StringBuilder_InsertFormattedString(stringbuilder_t* const _stringBuilder, const char* _format, ...);
 void StringBuilder_Clear(stringbuilder_t* const _stringBuilder);
 
 #define StringBuilder_Init(_stringBuilder) StringBuilder_InitWithMinSize(_stringBuilder, _STRINGBUILDER_INITIALCAPACITY, _STRINGBUILDER_BUFFEREXPANSIONRATE)

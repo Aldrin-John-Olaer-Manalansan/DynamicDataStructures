@@ -3,7 +3,7 @@
  * @Author: Aldrin John O. Manalansan (ajom)
  * @Email: aldrinjohnolaermanalansan@gmail.com
  * @Brief: Dynamically construct binaries without worrying about the allocated memory size
- * @LastUpdate: June 7, 2025
+ * @LastUpdate: June 16, 2025
  * 
  * Copyright (C) 2025  Aldrin John O. Manalansan  <aldrinjohnolaermanalansan@gmail.com>
  * 
@@ -18,6 +18,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+
+// linux compatibility
+#include <stddef.h>
+#include <limits.h>
 
 #define _BINARYBUILDER_INITIALCAPACITY 200
 #define _BINARYBUILDER_BUFFEREXPANSIONRATE 0.5
@@ -40,13 +44,14 @@ uintptr_t BinaryBuilder_ReserveSize(binarybuilder_t* const _binaryBuilder, const
 bool BinaryBuilder_SetWriteOffset(binarybuilder_t* const _binaryBuilder, const uintptr_t _offset);
 bool BinaryBuilder_SetUsedSize(binarybuilder_t* const _binaryBuilder, const uintptr_t _offset);
 size_t BinaryBuilder_Delete(binarybuilder_t* const _binaryBuilder, size_t _length);
-bool BinaryBuilder_SetByte(binarybuilder_t* const _binaryBuilder, const uint8_t byte);
-bool BinaryBuilder_SetBytes(binarybuilder_t* const _binaryBuilder, const void* const _source, const size_t _length);
-bool BinaryBuilder_InsertByte(binarybuilder_t* const _binaryBuilder, const uint8_t byte);
-bool BinaryBuilder_InsertBytes(binarybuilder_t* const _binaryBuilder, const void* const _source, const size_t _length);
+uintptr_t BinaryBuilder_SetByte(binarybuilder_t* const _binaryBuilder, const uint8_t byte);
+uintptr_t BinaryBuilder_SetBytes(binarybuilder_t* const _binaryBuilder, const void* const _source, const size_t _length);
+uintptr_t BinaryBuilder_InsertByte(binarybuilder_t* const _binaryBuilder, const uint8_t byte);
+uintptr_t BinaryBuilder_InsertBytes(binarybuilder_t* const _binaryBuilder, const void* const _source, const size_t _length);
 void BinaryBuilder_Clear(binarybuilder_t* const _binaryBuilder);
 void BinaryBuilder_FreeBuffer(binarybuilder_t* const _binaryBuilder);
 void BinaryBuilder_Free(binarybuilder_t* _binaryBuilder);
+binarybuilder_t* BinaryBuilder_Clone(binarybuilder_t* restrict _destination, const binarybuilder_t* restrict const _source);
 binarybuilder_t* BinaryBuilder_InitWithMinSize(binarybuilder_t* _binaryBuilder, const size_t _minCapacity, const float _expansionRate);
 binarybuilder_t* BinaryBuilder_SetAutoExpandWithMinSize(binarybuilder_t* const _binaryBuilder, const size_t _minCapacity, const float _expansionRate);
 void BinaryBuilder_InitUsingBuffer(binarybuilder_t* const _binaryBuilder, void* const _data, const size_t _capacity);
@@ -54,6 +59,7 @@ void BinaryBuilder_InitUsingBuffer(binarybuilder_t* const _binaryBuilder, void* 
 void BinaryData_FreeBuffer(binarydata_t* const _binaryData);
 void BinaryData_Free(binarydata_t* _binaryData);
 bool BinaryData_SetMinSize(binarydata_t* const _binaryData, const size_t _minCapacity);
+binarydata_t* BinaryData_Clone(binarydata_t* restrict _destination, const binarydata_t* restrict const _source);
 binarydata_t* BinaryData_InitWithMinSize(binarydata_t* _binaryData, const size_t _minCapacity);
 
 #define BinaryBuilder_Init(_binaryBuilder) BinaryBuilder_InitWithMinSize(_binaryBuilder, _BINARYBUILDER_INITIALCAPACITY, _BINARYBUILDER_BUFFEREXPANSIONRATE)
