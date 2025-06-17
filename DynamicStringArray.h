@@ -3,7 +3,7 @@
  * @Author: Aldrin John O. Manalansan (ajom)
  * @Email: aldrinjohnolaermanalansan@gmail.com
  * @Brief: Dynamically construct String Arrays with arbitrary size
- * @LastUpdate: June 7, 2025
+ * @LastUpdate: June 17, 2025
  * 
  * Copyright (C) 2025  Aldrin John O. Manalansan  <aldrinjohnolaermanalansan@gmail.com>
  * 
@@ -15,11 +15,9 @@
 
 #pragma once
 
-#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stddef.h>
 
 #define _DYNAMICARRAY_DEFAULT_INITIALARRAYCOUNT 10
 #define _DYNAMICARRAY_DEFAULT_INITIALBUFFERSIZE 100

@@ -3,7 +3,7 @@
  * @Author: Aldrin John O. Manalansan (ajom)
  * @Email: aldrinjohnolaermanalansan@gmail.com
  * @Brief: Dynamically construct String Arrays with arbitrary size
- * @LastUpdate: June 7, 2025
+ * @LastUpdate: June 17, 2025
  * 
  * Copyright (C) 2025  Aldrin John O. Manalansan  <aldrinjohnolaermanalansan@gmail.com>
  * 
@@ -14,6 +14,14 @@
  */
 
 #include "DynamicStringArray.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef _WIN32
+	#define stricmp strcasecmp
+#endif
 
 // assures the minimum elements of the DynamicStringArray. Expanding its memory size if necessary
 bool DynamicStringArray_SetMinElements(dynamicstringarray_t* const _object, size_t _minElementCount) {

@@ -3,7 +3,7 @@
  * @Author: Aldrin John O. Manalansan (ajom)
  * @Email: aldrinjohnolaermanalansan@gmail.com
  * @Brief: Dynamically construct a dictionary of key-value pairs
- * @LastUpdate: June 16, 2025
+ * @LastUpdate: June 17, 2025
  * 
  * Copyright (C) 2025  Aldrin John O. Manalansan  <aldrinjohnolaermanalansan@gmail.com>
  * 
@@ -19,26 +19,168 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* checks which memory block has higher value
+// checks if the entire memory block is non-zero
+// this takes advantage of all the register sizes which guaratee that the operation finishes quickly
+static bool IsMemoryBlockNonZero(const void* const _block, const size_t _blockSize) {
+	const size_t* _seeker = _block;
+	const uint8_t* const _outOfBoundsPtr = (uint8_t*)_block + _blockSize;
+	const size_t* const _boundary = (size_t*)_outOfBoundsPtr - 1;
+	for (;(uintptr_t)_seeker < (uintptr_t)_boundary; _seeker++) {
+		if (*_seeker) {
+			return true;
+		}
+	}
+	const uint8_t* _searchBlock = (uint8_t*)_seeker;
+#if SIZE_MAX >= 0xFFFFFFFFFFFFFFFFULL // 64-bit compiler
+	if (_searchBlock < _outOfBoundsPtr) {
+		uint64_t _value;
+		memcpy(&_value, _searchBlock, sizeof(uint64_t));
+		if (_value) {
+			return true;
+		}
+		_searchBlock += sizeof(uint64_t);
+	}
+#endif
+#if SIZE_MAX >= 0xFFFFFFFFUL // 32-bit compiler and above
+	if (_searchBlock < _outOfBoundsPtr) {
+		uint32_t _value;
+		memcpy(&_value, _searchBlock, sizeof(uint32_t));
+		if (_value) {
+			return true;
+		}
+		_searchBlock += sizeof(uint32_t);
+	}
+#endif
+#if SIZE_MAX >= 0xFFFFU // 16-bit compiler and above
+	if (_searchBlock < _outOfBoundsPtr) {
+		uint16_t _value;
+		memcpy(&_value, _searchBlock, sizeof(uint16_t));
+		if (_value) {
+			return true;
+		}
+		_searchBlock += sizeof(uint16_t);
+	}
+#endif
+#if SIZE_MAX >= 0xFFU // 8-bit compiler and above
+	if (_searchBlock < _outOfBoundsPtr) {
+		uint8_t _value;
+		memcpy(&_value, _searchBlock, sizeof(uint8_t));
+		if (_value) {
+			return true;
+		}
+	}
+#endif
+	return false;
+}
+
+/* checks which memory block has higher value.
+ * This function takes advantages of the Register size to quickly compare blocks of bytes
  * the blocks are treated as little endian big numbers
- * where block_N[0] is the least significant byte
- * where block_N[n - 1] is the most significant byte
+ * 0x Bn-1 Bn-2  Bn-3 ... B3 B1 B0
+ * where block_N[0] is the least significant byte: LSB = B0
+ * where block_N[n - 1] is the most significant byte: MSB = Bn-1
  * returns -1 if block_A <  block_B
  * returns  0 if block_A == block_B
  * returns  1 if block_A >  block_B
  */
 static int8_t CompareMemoryBlocks(
-    const uint8_t* const _block_A, const size_t _blockSize_A,
-    const uint8_t* const _block_B, const size_t _blockSize_B
+    const void* const _block_A, const size_t _blockSize_A,
+    const void* const _block_B, const size_t _blockSize_B
 ) {
-	for (size_t _i = (_blockSize_A > _blockSize_B) ? _blockSize_A : _blockSize_B; _i--;) { 
-		uint8_t _value_A = (_blockSize_A <= _i) ? 0 : _block_A[_i];
-		uint8_t _value_B = (_blockSize_B <= _i) ? 0 : _block_B[_i];
-		if (_value_A < _value_B) return -1;
-		if (_value_A > _value_B) return  1;
+	size_t _startOffset;
+		// check unaligned bytes
+	if (_blockSize_A > _blockSize_B) {
+		if (IsMemoryBlockNonZero((uint8_t*)_block_A + _blockSize_B, _blockSize_A - _blockSize_B)) {
+			return  1; // block_A > block_B
+		}
+		_startOffset = _blockSize_B;
+	} else {
+		if (_blockSize_A < _blockSize_B) {
+			if (IsMemoryBlockNonZero((uint8_t*)_block_B + _blockSize_A, _blockSize_B - _blockSize_A)) {
+				return -1; // block_A < block_B
+			}
+		}
+		_startOffset = _blockSize_A;
 	}
+		//
+	
+	const size_t* _seeker_A = (size_t*)((uintptr_t)_block_A + _startOffset);
+	const size_t* _seeker_B = (size_t*)((uintptr_t)_block_B + _startOffset);
+	for (size_t i = _startOffset / sizeof(size_t); i; i--) {
+		const size_t _value_A = *(--_seeker_A);
+		const size_t _value_B = *(--_seeker_B);
+		if (_value_A < _value_B) return -1;
+		else if (_value_A > _value_B) return 1;
+	}
+
+	uintptr_t _boundaryCheck;
+	const uint8_t* _searchBlock_A = (uint8_t*)_seeker_A;
+	const uint8_t* _searchBlock_B = (uint8_t*)_seeker_B;
+#if SIZE_MAX >= 0xFFFFFFFFFFFFFFFFULL // 64-bit compiler
+	_boundaryCheck = (uintptr_t)_searchBlock_A - sizeof(uint64_t);
+	if (_boundaryCheck >= (uintptr_t)_block_A) {
+		_searchBlock_A = (uint8_t*)_boundaryCheck;
+		_searchBlock_B -= sizeof(uint64_t);
+		uint64_t _value_A, _value_B;
+		memcpy(&_value_A, _searchBlock_A, sizeof(uint64_t));
+		memcpy(&_value_B, _searchBlock_B, sizeof(uint64_t));
+		if (_value_A < _value_B) return -1;
+		else if (_value_A > _value_B) return 1;
+	}
+#endif
+#if SIZE_MAX >= 0xFFFFFFFFUL // 32-bit compiler and above
+	_boundaryCheck = (uintptr_t)_searchBlock_A - sizeof(uint32_t);
+	if (_boundaryCheck >= (uintptr_t)_block_A) {
+		_searchBlock_A = (uint8_t*)_boundaryCheck;
+		_searchBlock_B -= sizeof(uint32_t);
+		uint32_t _value_A, _value_B;
+		memcpy(&_value_A, _searchBlock_A, sizeof(uint32_t));
+		memcpy(&_value_B, _searchBlock_B, sizeof(uint32_t));
+		if (_value_A < _value_B) return -1;
+		else if (_value_A > _value_B) return 1;
+	}
+#endif
+#if SIZE_MAX >= 0xFFFFU // 16-bit compiler and above
+	_boundaryCheck = (uintptr_t)_searchBlock_A - sizeof(uint16_t);
+	if (_boundaryCheck >= (uintptr_t)_block_A) {
+		_searchBlock_A = (uint8_t*)_boundaryCheck;
+		_searchBlock_B -= sizeof(uint16_t);
+		uint16_t _value_A, _value_B;
+		memcpy(&_value_A, _searchBlock_A, sizeof(uint16_t));
+		memcpy(&_value_B, _searchBlock_B, sizeof(uint16_t));
+		if (_value_A < _value_B) return -1;
+		else if (_value_A > _value_B) return 1;
+	}
+#endif
+#if SIZE_MAX >= 0xFFU // 8-bit compiler and above
+	_boundaryCheck = (uintptr_t)_searchBlock_A - sizeof(uint8_t);
+	if (_boundaryCheck >= (uintptr_t)_block_A) {
+		_searchBlock_A = (uint8_t*)_boundaryCheck;
+		_searchBlock_B -= sizeof(uint8_t);
+		uint8_t _value_A, _value_B;
+		memcpy(&_value_A, _searchBlock_A, sizeof(uint8_t));
+		memcpy(&_value_B, _searchBlock_B, sizeof(uint8_t));
+		if (_value_A < _value_B) return -1;
+		else if (_value_A > _value_B) return 1;
+	}
+#endif
+
 	return 0;
 }
+
+// naive(byte by byte) compare memory blocks(slower)
+// static int8_t CompareMemoryBlocks(
+//     const uint8_t* const _block_A, const size_t _blockSize_A,
+//     const uint8_t* const _block_B, const size_t _blockSize_B
+// ) {
+// 	for (size_t _i = (_blockSize_A > _blockSize_B) ? _blockSize_A : _blockSize_B; _i--;) { 
+// 		uint8_t _value_A = (_blockSize_A <= _i) ? 0 : _block_A[_i];
+// 		uint8_t _value_B = (_blockSize_B <= _i) ? 0 : _block_B[_i];
+// 		if (_value_A < _value_B) return -1;
+// 		if (_value_A > _value_B) return  1;
+// 	}
+// 	return 0;
+// }
 
 /* performs a binarysearch algorithm to traverse the dictionary
  * returns 0 if the key is found, pickedIndex = this key's index

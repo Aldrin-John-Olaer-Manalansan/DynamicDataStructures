@@ -3,7 +3,7 @@
  * @Author: Aldrin John O. Manalansan (ajom)
  * @Email: aldrinjohnolaermanalansan@gmail.com
  * @Brief: Dynamically construct Arrays with arbitrary size
- * @LastUpdate: June 7, 2025
+ * @LastUpdate: June 17, 2025
  * 
  * Copyright (C) 2025  Aldrin John O. Manalansan  <aldrinjohnolaermanalansan@gmail.com>
  * 
@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #define _object_DEFAULT_INITIALCOUNT 30
 #define _object_DEFAULT_EXPANSIONRATE 1.5
